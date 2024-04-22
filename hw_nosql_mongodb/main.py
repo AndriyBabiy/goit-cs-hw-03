@@ -24,8 +24,11 @@ name = args["name"]
 age = args["age"]
 features = args["features"]
 
-def read():
+def read_all():
     return db.find()
+
+def read_distinct(name):
+    return db.find({"name": name})
 
 def create(name, age, features):
     return db.insert_one({
@@ -37,11 +40,24 @@ def create(name, age, features):
 def update(pk, name, age, features):
     return db.update_one({"_id": ObjectId(pk)}, {"$set": {"name":name, "age":age, "features":features}})
 
-def delete(pk):
-    if (pk):
-        return db.delete_one({'_id': ObjectId(pk)})
-    else:
-        return db.delete_many()
+def update_age(name, age):
+    return db.update_one({"name": name}, {"$set": {"age": age}})
+
+def update_features_by_name(name, features):
+    for feature in features:
+        result = db.update_one({"name": name}, {"$push": {"features": feature}})
+    return result
+
+def delete_by_id(pk):
+    return db.delete_one({'_id': ObjectId(pk)})
+
+def delete_by_name(name):
+    return db.delete_one({'name': name})
+
+def delete_all():
+    return db.delete_many({})
+    
+
 
 if __name__ == "__main__": 
     match action:
@@ -49,12 +65,45 @@ if __name__ == "__main__":
             result = create(name, age, features)
             print(result.inserted_id)
         case "read":
-            [print(elem) for elem in read()]
+            [print(elem) for elem in read_all()]
+        case "read-by-name":
+            if name:
+                for elem in read_distinct(name):
+                    print(elem)
+            else:
+                print("You forgot to state the name using the --name CLI argument")
         case "update":
             result = update(pk, name, age, features)
             print(result.modified_count)
-        case "delete":
-            result = delete(pk)
+        case "update-age": 
+            if name and age:
+                result = update_age(name, age)
+                print(result.modified_count)
+            elif not name and not age:
+                print("You forgot to state the name and age using the --name and --age CLI arguments")
+            elif not name:
+                print("You forgot to state the name using the --name CLI argument")
+            elif not age:
+                print("You forgot to state the age using the --age CLI argument")
+        case "update-features": 
+            if name and features:
+                for feature in features:
+                    result = update_features_by_name(name, features)
+                print(result.modified_count)
+            elif not name and not features:
+                print("You forgot to state the name and features using the --name and --features CLI arguments")
+            elif not name:
+                print("You forgot to state the name using the --name CLI argument")
+            elif not features:
+                print("You forgot to state the features using the --features CLI argument")
+        case "delete-by-id":
+            result = delete_by_id(pk)
+            print(result.deleted_count)
+        case "delete-by-name":
+            result = delete_by_name(name)
+            print(result.deleted_count)
+        case "delete-all":
+            result = delete_all()
             print(result.deleted_count)
         case _:
             print('Wrong action')
